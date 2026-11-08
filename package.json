@@ -4,8 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "tsx src/index.ts",
-    "eval": "tsx src/evals/run.ts",
+    "start": "tsx --env-file-if-exists=.env src/index.ts",
+    "start:gemma": "tsx --env-file-if-exists=.env src/index.ts",
+    "start:gemma:free": "tsx --env-file-if-exists=.env src/index.ts",
+    "start:gemma:paid": "tsx --env-file-if-exists=.env src/index.ts --model openrouter/google/gemma-4-31b-it",
+    "eval": "tsx --env-file-if-exists=.env src/evals/run.ts",
+    "eval:gemma": "tsx --env-file-if-exists=.env src/evals/run.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

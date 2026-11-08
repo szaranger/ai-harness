@@ -1,8 +1,19 @@
 import { AdvancedAgentHarness } from "./harness.js";
 import { buildSystemPrompt } from "./prompt.js";
+import { DEFAULT_MODEL, openRouterProvider } from "./models.js";
+
+function argValue(name: string): string | undefined {
+  const index = process.argv.lastIndexOf(name);
+  return index === -1 ? undefined : process.argv[index + 1];
+}
 
 async function executionPipeline() {
+  const model = argValue("--model") ?? process.env.OPENCODE_MODEL ?? DEFAULT_MODEL;
+  const usesOpenRouter = model.startsWith("openrouter/");
+
   const harness = await AdvancedAgentHarness.create({
+    model,
+    ...(usesOpenRouter ? { provider: openRouterProvider } : {}),
     systemInstruction: buildSystemPrompt({ today: new Date() }),
   });
 

@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { AdvancedAgentHarness } from "../harness.js";
+import { DEFAULT_MODEL, openRouterProvider } from "../models.js";
 import { buildSystemPrompt } from "../prompt.js";
 import { cases, type ToolRecord } from "./cases.js";
 
@@ -38,6 +39,8 @@ async function main(): Promise<void> {
   const keep = process.argv.includes("--keep");
   const filter = argValue("--case");
   const timeoutMs = Number(argValue("--timeout") ?? 180_000);
+  const model = argValue("--model") ?? process.env.OPENCODE_MODEL ?? DEFAULT_MODEL;
+  const usesOpenRouter = model.startsWith("openrouter/");
 
   const selected = filter ? cases.filter((testCase) => testCase.id === filter) : cases;
   if (selected.length === 0) {
@@ -58,6 +61,8 @@ async function main(): Promise<void> {
 
   let trace: ToolRecord[] = [];
   const harness = await AdvancedAgentHarness.create({
+    ...(model ? { model } : {}),
+    ...(usesOpenRouter ? { provider: openRouterProvider } : {}),
     systemInstruction: buildSystemPrompt({ today: new Date() }),
     permission: {
       edit: "allow",

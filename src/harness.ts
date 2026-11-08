@@ -8,6 +8,7 @@ export interface HarnessConfig {
   agent?: string;
   systemInstruction?: string;
   permission?: Config["permission"];
+  provider?: Config["provider"];
   tools?: Config["tools"];
   onTool?: (tool: ToolCall) => void;
 }
@@ -32,6 +33,7 @@ export class AdvancedAgentHarness {
       config: {
         logLevel: "ERROR",
         ...(config.model ? { model: config.model } : {}),
+        ...(config.provider ? { provider: config.provider } : {}),
         permission: config.permission ?? {
           edit: "allow",
           bash: "allow",
