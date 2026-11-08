@@ -1,11 +1,15 @@
 import { createOpencode } from "@opencode-ai/sdk";
 import type { Config, Part } from "@opencode-ai/sdk";
 
+export type ToolCall = Extract<Part, { type: "tool" }>;
+
 export interface HarnessConfig {
   model?: string;
   agent?: string;
   systemInstruction?: string;
   permission?: Config["permission"];
+  tools?: Config["tools"];
+  onTool?: (tool: ToolCall) => void;
 }
 
 type Opencode = Awaited<ReturnType<typeof createOpencode>>;
@@ -14,6 +18,7 @@ export class AdvancedAgentHarness {
   private readonly client: Opencode["client"];
   private readonly server: Opencode["server"];
   private readonly config: HarnessConfig;
+  private readonly notifiedToolIDs = new Set<string>();
   private sessionID?: string;
 
   private constructor(opencode: Opencode, config: HarnessConfig) {
@@ -32,6 +37,7 @@ export class AdvancedAgentHarness {
           bash: "allow",
           webfetch: "allow",
         },
+        tools: config.tools ?? { question: false },
       },
     });
 
@@ -62,7 +68,13 @@ export class AdvancedAgentHarness {
     });
 
     const { info, parts } = result.data;
-    logToolActivity(parts);
+    const messages = await this.client.session.messages({
+      path: { id: this.sessionID },
+      throwOnError: true,
+    });
+    const allParts = messages.data.flatMap((message) => message.parts);
+    logToolActivity(allParts);
+    this.notifyTools(allParts);
 
     if (info.error) {
       const detail = JSON.stringify(info.error);
@@ -70,11 +82,29 @@ export class AdvancedAgentHarness {
     }
 
     console.log(`🏁 Task concluded with terminal answer.`);
-    return collectText(parts) || "Task finalized successfully.";
+    const answer = collectText(parts);
+    if (!answer) {
+      throw new Error("opencode returned no text answer for this task.");
+    }
+    return answer;
   }
 
   async close(): Promise<void> {
     this.server.close();
+  }
+
+  resetSession(): void {
+    this.sessionID = undefined;
+    this.notifiedToolIDs.clear();
+  }
+
+  private notifyTools(parts: Part[]): void {
+    if (!this.config.onTool) return;
+    for (const part of parts) {
+      if (part.type !== "tool" || this.notifiedToolIDs.has(part.id)) continue;
+      this.notifiedToolIDs.add(part.id);
+      this.config.onTool(part);
+    }
   }
 }
 
@@ -89,6 +119,8 @@ function collectText(parts: Part[]): string {
 function logToolActivity(parts: Part[]): void {
   const toolParts = parts.filter((part): part is Extract<Part, { type: "tool" }> => part.type === "tool");
   for (const part of toolParts) {
-    console.log(`🛠️  ${part.tool} -> ${part.state.status}`);
+    const status = part.state.status;
+    const detail = part.state.status === "error" ? ` - ${part.state.error}` : "";
+    console.log(`🛠️  ${part.tool} -> ${status}${detail}`);
   }
 }

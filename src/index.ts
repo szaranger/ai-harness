@@ -1,9 +1,9 @@
 import { AdvancedAgentHarness } from "./harness.js";
+import { buildSystemPrompt } from "./prompt.js";
 
 async function executionPipeline() {
   const harness = await AdvancedAgentHarness.create({
-    systemInstruction:
-      "You are a code inspection engineer. When calculating logic, construct runtime code and verify your assumptions using your tools.",
+    systemInstruction: buildSystemPrompt({ today: new Date() }),
   });
 
   const executionObjective =
